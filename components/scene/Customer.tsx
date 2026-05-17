@@ -5,18 +5,21 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useSimClock } from "@/lib/hooks/useSimClock";
 import type { Customer } from "@/lib/sim/types";
-import { EXIT_X, EXIT_Z, LANE_X_HEAD, queueSlotPosition, stationPosition } from "./QueueLane";
+import {
+  DELIVERY_WINDOW_X,
+  DELIVERY_WINDOW_Z,
+  EXIT_X,
+  EXIT_Z,
+  LANE_X_HEAD,
+  deliveryQueueSlotPosition,
+  queueSlotPosition,
+  stationPosition,
+} from "./QueueLane";
 
 const COLORS: Record<Customer["orderType"], THREE.Color> = {
   walkin: new THREE.Color("#ff6b6b"),
   pickup: new THREE.Color("#ffd93d"),
   delivery: new THREE.Color("#6bcbff"),
-};
-
-const GLOW_COLORS: Record<Customer["orderType"], number> = {
-  walkin: 0xff6b6b,
-  pickup: 0xffd93d,
-  delivery: 0x6bcbff,
 };
 
 function assignStations(customers: readonly Customer[], c: number): Int16Array {
@@ -73,7 +76,8 @@ export default function Customers({ customers, c, horizonMinutes }: Props) {
     if (!body || !head) return;
 
     let slot = 0;
-    let queueIdx = 0;
+    let walkinQueueIdx = 0;
+    let deliveryQueueIdx = 0;
 
     for (let i = 0; i < customers.length && slot < MAX_VISIBLE; i++) {
       const cust = customers[i]!;
@@ -81,9 +85,15 @@ export default function Customers({ customers, c, horizonMinutes }: Props) {
       const departure = cust.departureTime ?? Infinity;
       if (now > departure + 2) continue;
 
+      const isDelivery = cust.orderType === "delivery";
+      const queueIdx = isDelivery ? deliveryQueueIdx : walkinQueueIdx;
+
       const pos = positionFor(cust, now, stations[i] ?? -1, c, queueIdx);
+
+      // Track queue index based on type
       if (stations[i] === -1 || (cust.serviceStartTime ?? Infinity) > now) {
-        queueIdx++;
+        if (isDelivery) deliveryQueueIdx++;
+        else walkinQueueIdx++;
       }
 
       // Body
@@ -121,7 +131,7 @@ export default function Customers({ customers, c, horizonMinutes }: Props) {
 
   return (
     <group>
-      <instancedMesh ref={bodyRef} args={[undefined, undefined, MAX_VISIBLE]} castShadow>
+      <instancedMesh ref={bodyRef} args={[undefined, undefined, MAX_VISIBLE]}>
         <capsuleGeometry args={[0.2, 0.5, 6, 12]} />
         <meshStandardMaterial vertexColors roughness={0.4} metalness={0.05} />
         <instancedBufferAttribute
@@ -130,7 +140,7 @@ export default function Customers({ customers, c, horizonMinutes }: Props) {
           args={[bodyColors, 3]}
         />
       </instancedMesh>
-      <instancedMesh ref={headRef} args={[undefined, undefined, MAX_VISIBLE]} castShadow>
+      <instancedMesh ref={headRef} args={[undefined, undefined, MAX_VISIBLE]}>
         <sphereGeometry args={[0.16, 12, 12]} />
         <meshStandardMaterial vertexColors roughness={0.3} metalness={0.1} emissive={new THREE.Color(0x444444)} emissiveIntensity={0.15} />
         <instancedBufferAttribute
@@ -154,12 +164,28 @@ function positionFor(
   const end = cust.departureTime ?? Infinity;
 
   if (now < start) {
+    // Waiting in queue — separate lanes per type
+    if (cust.orderType === "delivery") {
+      return deliveryQueueSlotPosition(queueIdx);
+    }
     return queueSlotPosition(queueIdx);
   }
+
   if (now <= end && stationId >= 0) {
+    // Being served
+    if (cust.orderType === "delivery") {
+      return [DELIVERY_WINDOW_X, 0, DELIVERY_WINDOW_Z];
+    }
     return stationPosition(stationId, c);
   }
+
+  // Exiting — interpolate from service position to exit
   const t = Math.min(1, Math.max(0, (now - end) / 2));
+  if (cust.orderType === "delivery") {
+    const exitX = DELIVERY_WINDOW_X + (EXIT_X - DELIVERY_WINDOW_X) * t;
+    const exitZ = DELIVERY_WINDOW_Z + (EXIT_Z - DELIVERY_WINDOW_Z) * t;
+    return [exitX, 0, exitZ];
+  }
   const [sx, , sz] = stationId >= 0 ? stationPosition(stationId, c) : [LANE_X_HEAD, 0, 0];
   const exitX = sx + (EXIT_X - sx) * t;
   const exitZ = sz + (EXIT_Z - sz) * t;
