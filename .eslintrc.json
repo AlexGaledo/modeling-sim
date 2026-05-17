@@ -1,0 +1,36 @@
+{
+  "extends": "next/core-web-vitals",
+  "overrides": [
+    {
+      "files": ["lib/sim/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "react",
+                  "react-dom",
+                  "next",
+                  "next/*",
+                  "three",
+                  "@react-three/*",
+                  "zustand"
+                ],
+                "message": "lib/sim/ must be pure TypeScript: no React, Three, Next, or Zustand imports."
+              }
+            ]
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "MemberExpression[object.name='Math'][property.name='random']",
+            "message": "Use the seeded PRNG from lib/sim/rng.ts; Math.random() is forbidden in lib/sim/."
+          }
+        ]
+      }
+    }
+  ]
+}

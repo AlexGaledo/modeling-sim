@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Read(//c/Users/alex/Desktop/Claudemaxxing/**)",
+      "Bash(rm -rf \"modeling&sim/node_modules\" \"modeling&sim/package-lock.json\")",
+      "Bash(mv \"modeling&sim\" \"modeling-sim\")"
+    ]
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true
+  }
+}
