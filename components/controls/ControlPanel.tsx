@@ -5,6 +5,7 @@ import Slider from "./Slider";
 
 export default function ControlPanel() {
   const s = useAppStore();
+  const total = s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour;
 
   return (
     <div className="space-y-5 text-sm">
@@ -28,14 +29,39 @@ export default function ControlPanel() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#555]">Load & service</h2>
+        <h2 className="text-base font-semibold text-[#555]">Orders per hour by type</h2>
+        <div className="flex items-center gap-2 rounded-md border border-[#ddd] bg-[#f8f6f3] px-2.5 py-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-[#999]">Total</span>
+          <span className="font-mono text-sm text-[#333]">{total}/hr</span>
+        </div>
         <Slider
-          label="Customer load (orders/hr)"
-          value={s.ordersPerHour}
-          min={10}
-          max={300}
-          onChange={s.setOrdersPerHour}
+          label="Walk-in"
+          value={s.walkinPerHour}
+          min={0}
+          max={200}
+          step={5}
+          onChange={s.setWalkinPerHour}
         />
+        <Slider
+          label="Pickup"
+          value={s.pickupPerHour}
+          min={0}
+          max={200}
+          step={5}
+          onChange={s.setPickupPerHour}
+        />
+        <Slider
+          label="Delivery"
+          value={s.deliveryPerHour}
+          min={0}
+          max={200}
+          step={5}
+          onChange={s.setDeliveryPerHour}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-[#555]">Service</h2>
         {s.mode !== "single" && (
           <Slider
             label="Baristas (c)"

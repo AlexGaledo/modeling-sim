@@ -64,6 +64,15 @@ function ResultView({
         <Kpi label="Profit/hr" value={`$${econ.profitPerHour.toFixed(0)}`} highlight />
       </div>
 
+      <div className="col-span-2 space-y-1 pt-1">
+        <div className="text-[10px] uppercase tracking-wide text-[#999]">Served by type</div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <span><span className="text-[#ff6b6b]">●</span> Walk-in {stats.drinksServedByType.walkin}</span>
+          <span><span className="text-[#ffd93d]">●</span> Pickup {stats.drinksServedByType.pickup}</span>
+          <span><span className="text-[#6bcbff]">●</span> Delivery {stats.drinksServedByType.delivery}</span>
+        </div>
+      </div>
+
       {!theory.unstable && stats.meanWq > 0 && (
         <p className="text-xs text-[#999]">
           Δ Wq {pct(stats.meanWq, theory.Wq)} · W {pct(stats.meanW, theory.W)}
