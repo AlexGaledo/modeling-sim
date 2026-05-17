@@ -22,7 +22,7 @@ export default function ControlPanel() {
                   : "text-[#666] hover:bg-white/60"
               }`}
             >
-              {m}
+              {m === "single" ? "Single queue" : m === "multi" ? "Per-type queues" : "Compare"}
             </button>
           ))}
         </div>
@@ -62,7 +62,8 @@ export default function ControlPanel() {
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-[#555]">Service</h2>
-        {s.mode !== "single" && (
+
+        {s.mode === "single" && (
           <Slider
             label="Baristas (c)"
             value={s.baristas}
@@ -71,6 +72,17 @@ export default function ControlPanel() {
             onChange={s.setBaristas}
           />
         )}
+
+        {s.mode === "multi" && (
+          <Slider
+            label="Baristas per channel"
+            value={s.baristasPerChannel}
+            min={1}
+            max={10}
+            onChange={s.setBaristasPerChannel}
+          />
+        )}
+
         <Slider
           label="Service time / drink (min)"
           value={s.serviceTimeMinutes}

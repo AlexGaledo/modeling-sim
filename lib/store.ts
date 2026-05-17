@@ -13,6 +13,7 @@ export interface AppState {
   pickupPerHour: number;
   deliveryPerHour: number;
   baristas: number;
+  baristasPerChannel: number;
   serviceTimeMinutes: number;
   mode: Mode;
   simSpeed: number;
@@ -33,6 +34,7 @@ export interface AppState {
   setPickupPerHour: (v: number) => void;
   setDeliveryPerHour: (v: number) => void;
   setBaristas: (v: number) => void;
+  setBaristasPerChannel: (v: number) => void;
   setServiceTimeMinutes: (v: number) => void;
   setMode: (m: Mode) => void;
   setSimSpeed: (v: number) => void;
@@ -44,7 +46,8 @@ export const useAppStore = create<AppState>((set) => ({
   walkinPerHour: 50,
   pickupPerHour: 30,
   deliveryPerHour: 20,
-  baristas: 1,
+  baristas: 2,
+  baristasPerChannel: 1,
   serviceTimeMinutes: 5,
   mode: "single",
   simSpeed: 10,
@@ -63,6 +66,7 @@ export const useAppStore = create<AppState>((set) => ({
   setPickupPerHour: (v) => set({ pickupPerHour: v }),
   setDeliveryPerHour: (v) => set({ deliveryPerHour: v }),
   setBaristas: (v) => set({ baristas: v }),
+  setBaristasPerChannel: (v) => set({ baristasPerChannel: v }),
   setServiceTimeMinutes: (v) => set({ serviceTimeMinutes: v }),
   setMode: (m) => set({ mode: m }),
   setSimSpeed: (v) => set({ simSpeed: v }),
@@ -70,13 +74,13 @@ export const useAppStore = create<AppState>((set) => ({
   reset: () => set({ playState: "idle", runId: 0 }),
 }));
 
-/** Derive engine SimParams from the store's user-facing values. */
+/** Base SimParams template — consumers override c / mix / lambda per mode. */
 export function selectSimParams(s: AppState) {
   const total = s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour;
   return {
     lambda: total > 0 ? total / 60 : 0.01,
     mu: 1 / s.serviceTimeMinutes,
-    c: s.mode === "single" ? 1 : s.baristas,
+    c: s.baristas,
     mix: {
       walkin: total > 0 ? s.walkinPerHour / total : 1 / 3,
       pickup: total > 0 ? s.pickupPerHour / total : 1 / 3,

@@ -12,8 +12,12 @@ import FloorLabels from "./Labels";
 
 export default function Scene() {
   const result = useSim();
+  const mode = useAppStore((s) => s.mode);
   const baristas = useAppStore((s) => s.baristas);
   const horizon = useAppStore((s) => s.horizonMinutes);
+  const baristasPerChannel = useAppStore((s) => s.baristasPerChannel);
+
+  const c = mode === "single" ? baristas : baristasPerChannel;
 
   return (
     <div className="h-full w-full">
@@ -29,12 +33,12 @@ export default function Scene() {
 
         <Ground />
         <QueueLane />
-        <BaristaStations c={baristas} />
-        <FloorLabels c={baristas} />
+        <BaristaStations c={c} />
+        <FloorLabels c={c} />
         {result && (
           <Customers
             customers={result.customers}
-            c={baristas}
+            c={c}
             horizonMinutes={horizon}
           />
         )}
