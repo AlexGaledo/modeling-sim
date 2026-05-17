@@ -148,6 +148,30 @@ export default function QueueLane() {
         </mesh>
       </group>
 
+      {/* ── DRINK QUEUE AREA — behind barista stations ── */}
+      {/* Floor zone */}
+      <mesh position={[5, 0.014, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[2.5, 9]} />
+        <meshStandardMaterial color="#e0dcc5" />
+      </mesh>
+      {/* Ticket rail — narrow shelf where orders queue */}
+      <group position={[5, 0, 0]}>
+        {/* Rail bar */}
+        <mesh position={[0, 0.65, 0]}>
+          <boxGeometry args={[0.08, 0.03, 8.5]} />
+          <meshStandardMaterial color="#888" roughness={0.4} metalness={0.3} />
+        </mesh>
+        {/* Rail support legs */}
+        <mesh position={[0, 0.35, -4.2]}>
+          <boxGeometry args={[0.06, 0.6, 0.06]} />
+          <meshStandardMaterial color="#777" roughness={0.5} metalness={0.2} />
+        </mesh>
+        <mesh position={[0, 0.35, 4.2]}>
+          <boxGeometry args={[0.06, 0.6, 0.06]} />
+          <meshStandardMaterial color="#777" roughness={0.5} metalness={0.2} />
+        </mesh>
+      </group>
+
       {/* ── PICKUP SHELF — between counter and exit ── */}
       <mesh position={[-0.5, 0.7, 5]}>
         <boxGeometry args={[0.6, 0.06, 1.0]} />

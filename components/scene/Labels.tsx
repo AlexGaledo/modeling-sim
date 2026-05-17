@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import * as THREE from "three";
-import { COUNTER_X, DELIVERY_WINDOW_X, DELIVERY_WINDOW_Z, EXIT_X, EXIT_Z, STATION_START_X } from "./QueueLane";
+import { COUNTER_X, DELIVERY_WINDOW_X, DELIVERY_WINDOW_Z, STATION_SPACING_Z } from "./QueueLane";
+import type { Mode } from "@/lib/store";
 
 function makeTextTexture(text: string, color: string, fontSize: number): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -34,7 +35,7 @@ function TextLabel({ x, z, text, color, fontSize = 0.45 }: { x: number; z: numbe
   );
 }
 
-export default function FloorLabels({ c }: { c: number }) {
+export default function FloorLabels({ c, mode }: { c: number; mode: Mode }) {
   const baristaZ = c > 0 ? (c - 1) * 1.4 / 2 : 0;
 
   return (
@@ -42,11 +43,25 @@ export default function FloorLabels({ c }: { c: number }) {
       {/* Main walk-in queue area */}
       <TextLabel x={-3.5} z={0} text="——  QUEUE  ——" color="#999" />
       <TextLabel x={COUNTER_X} z={5.8} text="COUNTER" color="#8B4513" />
-      <TextLabel x={STATION_START_X} z={Math.max(baristaZ + 2.8, 2.8)} text="——  BARISTA  ——" color="#00704A" />
+      <TextLabel x={3} z={Math.max(baristaZ + 2.8, 2.8)} text="——  BARISTA  ——" color="#00704A" />
 
-      {/* Delivery queue area */}
+      {/* Delivery window area */}
       <TextLabel x={DELIVERY_WINDOW_X} z={DELIVERY_WINDOW_Z - 1.2} text="DELIVERY" color="#6bcbff" fontSize={0.35} />
       <TextLabel x={DELIVERY_WINDOW_X + 0.8} z={DELIVERY_WINDOW_Z + 0.6} text="WINDOW →" color="#6bcbff" fontSize={0.3} />
+
+      {/* Drink queue — behind barista stations */}
+      {mode === "single" ? (
+        <>
+          <TextLabel x={6.2} z={0} text="← SINGLE QUEUE" color="#8B4513" fontSize={0.35} />
+          <TextLabel x={6.2} z={-0.5} text="(FCFS all orders)" color="#999" fontSize={0.25} />
+        </>
+      ) : mode === "multi" ? (
+        <>
+          <TextLabel x={6.2} z={1.5} text="← WALK-IN" color="#ff6b6b" fontSize={0.3} />
+          <TextLabel x={6.2} z={0} text="← PICKUP" color="#ffd93d" fontSize={0.3} />
+          <TextLabel x={6.2} z={-1.5} text="← DELIVERY" color="#6bcbff" fontSize={0.3} />
+        </>
+      ) : null}
 
       <TextLabel x={-0.5} z={6.2} text="PICKUP →" color="#3fa9f5" fontSize={0.35} />
       <TextLabel x={-5} z={-5.5} text="← ENTRANCE" color="#999" />

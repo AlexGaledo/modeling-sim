@@ -3,7 +3,6 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useSimClock } from "@/lib/hooks/useSimClock";
 import type { Customer } from "@/lib/sim/types";
 import {
   DELIVERY_WINDOW_X,
@@ -47,14 +46,15 @@ function assignStations(customers: readonly Customer[], c: number): Int16Array {
 interface Props {
   customers: readonly Customer[];
   c: number;
-  horizonMinutes: number;
+  clockRef: React.MutableRefObject<number>;
+  advance: (delta: number) => void;
 }
 
 const MAX_VISIBLE = 400;
 const HIDDEN = new THREE.Vector3(0, -10, 0);
 const dummy = new THREE.Object3D();
 
-export default function Customers({ customers, c, horizonMinutes }: Props) {
+export default function Customers({ customers, c, clockRef, advance }: Props) {
   const bodyRef = useRef<THREE.InstancedMesh>(null);
   const headRef = useRef<THREE.InstancedMesh>(null);
   const colorAttrBody = useRef<THREE.InstancedBufferAttribute | null>(null);
@@ -63,7 +63,6 @@ export default function Customers({ customers, c, horizonMinutes }: Props) {
     console.log(`[CUSTOMER] assignStations: ${customers.length} customers, c=${c}`);
     return assignStations(customers, c);
   }, [customers, c]);
-  const { ref: clockRef, advance } = useSimClock(horizonMinutes);
 
   const bodyColors = useMemo(() => new Float32Array(MAX_VISIBLE * 3), []);
   const headColors = useMemo(() => new Float32Array(MAX_VISIBLE * 3), []);
@@ -90,18 +89,15 @@ export default function Customers({ customers, c, horizonMinutes }: Props) {
 
       const pos = positionFor(cust, now, stations[i] ?? -1, c, queueIdx);
 
-      // Track queue index based on type
       if (stations[i] === -1 || (cust.serviceStartTime ?? Infinity) > now) {
         if (isDelivery) deliveryQueueIdx++;
         else walkinQueueIdx++;
       }
 
-      // Body
       dummy.position.set(pos[0], 0.35, pos[2]);
       dummy.updateMatrix();
       body.setMatrixAt(slot, dummy.matrix);
 
-      // Head (sits on top of body)
       dummy.position.set(pos[0], 0.85, pos[2]);
       dummy.updateMatrix();
       head.setMatrixAt(slot, dummy.matrix);
@@ -164,7 +160,6 @@ function positionFor(
   const end = cust.departureTime ?? Infinity;
 
   if (now < start) {
-    // Waiting in queue — separate lanes per type
     if (cust.orderType === "delivery") {
       return deliveryQueueSlotPosition(queueIdx);
     }
@@ -172,14 +167,12 @@ function positionFor(
   }
 
   if (now <= end && stationId >= 0) {
-    // Being served
     if (cust.orderType === "delivery") {
       return [DELIVERY_WINDOW_X, 0, DELIVERY_WINDOW_Z];
     }
     return stationPosition(stationId, c);
   }
 
-  // Exiting — interpolate from service position to exit
   const t = Math.min(1, Math.max(0, (now - end) / 2));
   if (cust.orderType === "delivery") {
     const exitX = DELIVERY_WINDOW_X + (EXIT_X - DELIVERY_WINDOW_X) * t;
