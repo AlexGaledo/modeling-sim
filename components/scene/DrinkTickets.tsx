@@ -5,7 +5,6 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Customer } from "@/lib/sim/types";
 import type { Mode } from "@/lib/store";
-import { STATION_SPACING_Z } from "./QueueLane";
 
 const TICKET_COLORS: Record<string, THREE.Color> = {
   walkin: new THREE.Color("#ff6b6b"),
@@ -21,11 +20,45 @@ interface Props {
 
 const MAX_TICKETS = 100;
 const RAIL_X = 5;
-const RAIL_Y = 0.7;
+const RAIL_BASE_Y = 0.68;
+
+/** Stack a group of tickets vertically with slight alternating rotation. */
+function placeStack(
+  mesh: THREE.InstancedMesh,
+  dummy: THREE.Object3D,
+  colors: Float32Array,
+  tickets: Customer[],
+  baseZ: number,
+  startSlot: number,
+): number {
+  let slot = startSlot;
+  for (let j = 0; j < tickets.length && slot < MAX_TICKETS; j++) {
+    const y = RAIL_BASE_Y + j * 0.018;
+    const z = baseZ + (j % 3) * 0.006;
+    const tilt = (j % 2 === 0 ? 1 : -1) * 0.04;
+
+    dummy.position.set(RAIL_X, y, z);
+    dummy.rotation.set(0, 0, tilt);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(slot, dummy.matrix);
+
+    const cust = tickets[j]!;
+    const color = TICKET_COLORS[cust.orderType]!;
+    colors[slot * 3] = color.r;
+    colors[slot * 3 + 1] = color.g;
+    colors[slot * 3 + 2] = color.b;
+    slot++;
+  }
+  return slot;
+}
 
 export default function DrinkTickets({ customers, mode, clockRef }: Props) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const dummy = useMemo(() => {
+    const d = new THREE.Object3D();
+    d.scale.set(1.4, 1.4, 1);
+    return d;
+  }, []);
   const colors = useMemo(() => new Float32Array(MAX_TICKETS * 3), []);
 
   useFrame(() => {
@@ -33,7 +66,7 @@ export default function DrinkTickets({ customers, mode, clockRef }: Props) {
     const mesh = ref.current;
     if (!mesh) return;
 
-    // Customers currently being served (ticket is in the order queue)
+    // Orders in the drink queue: service started but not yet departed
     const inService = customers.filter(
       (c) =>
         c.serviceStartTime !== undefined &&
@@ -44,53 +77,29 @@ export default function DrinkTickets({ customers, mode, clockRef }: Props) {
     let slot = 0;
 
     if (mode === "multi") {
-      // Separate zones per type on the rail
-      const zones: { type: string; zCenter: number }[] = [
-        { type: "walkin", zCenter: 2.5 },
-        { type: "pickup", zCenter: 0 },
-        { type: "delivery", zCenter: -2.5 },
+      // Each channel gets its own stack
+      const zones: { type: Customer["orderType"]; z: number }[] = [
+        { type: "walkin", z: 3 },
+        { type: "pickup", z: 0.5 },
+        { type: "delivery", z: -2 },
       ];
 
       for (const zone of zones) {
         const typed = inService
           .filter((c) => c.orderType === zone.type)
           .sort((a, b) => (a.serviceStartTime ?? 0) - (b.serviceStartTime ?? 0));
-
-        for (let j = 0; j < typed.length && slot < MAX_TICKETS; j++) {
-          const z = zone.zCenter + j * 0.08;
-          dummy.position.set(RAIL_X, RAIL_Y, z);
-          dummy.updateMatrix();
-          mesh.setMatrixAt(slot, dummy.matrix);
-
-          const color = TICKET_COLORS[zone.type]!;
-          colors[slot * 3] = color.r;
-          colors[slot * 3 + 1] = color.g;
-          colors[slot * 3 + 2] = color.b;
-          slot++;
-        }
+        slot = placeStack(mesh, dummy, colors, typed, zone.z, slot);
       }
     } else {
-      // Single mode: one FIFO line, front (positive z) = next to be made
+      // Single mode: one stack, sorted FIFO
       const sorted = [...inService].sort(
         (a, b) => (a.serviceStartTime ?? 0) - (b.serviceStartTime ?? 0),
       );
-
-      for (const cust of sorted) {
-        if (slot >= MAX_TICKETS) break;
-        const z = 4 - slot * 0.08;
-        dummy.position.set(RAIL_X, RAIL_Y, z);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(slot, dummy.matrix);
-
-        const color = TICKET_COLORS[cust.orderType] ?? new THREE.Color("#fff");
-        colors[slot * 3] = color.r;
-        colors[slot * 3 + 1] = color.g;
-        colors[slot * 3 + 2] = color.b;
-        slot++;
-      }
+      slot = placeStack(mesh, dummy, colors, sorted, 2.5, 0);
     }
 
     // Hide remaining slots
+    dummy.rotation.set(0, 0, 0);
     for (let i = slot; i < MAX_TICKETS; i++) {
       dummy.position.set(RAIL_X, -10, 0);
       dummy.updateMatrix();
@@ -103,8 +112,13 @@ export default function DrinkTickets({ customers, mode, clockRef }: Props) {
 
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, MAX_TICKETS]}>
-      <planeGeometry args={[0.12, 0.08]} />
-      <meshStandardMaterial vertexColors roughness={0.3} metalness={0.4} />
+      <planeGeometry args={[0.15, 0.1]} />
+      <meshStandardMaterial
+        vertexColors
+        roughness={0.25}
+        metalness={0.3}
+        side={THREE.DoubleSide}
+      />
     </instancedMesh>
   );
 }

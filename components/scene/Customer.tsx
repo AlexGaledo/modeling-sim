@@ -21,6 +21,12 @@ const COLORS: Record<Customer["orderType"], THREE.Color> = {
   delivery: new THREE.Color("#6bcbff"),
 };
 
+const GLOW: Record<Customer["orderType"], number> = {
+  walkin: 0xff6b6b,
+  pickup: 0xffd93d,
+  delivery: 0x6bcbff,
+};
+
 function assignStations(customers: readonly Customer[], c: number): Int16Array {
   const stations = new Int16Array(customers.length).fill(-1);
   const occupied: { customerId: number; freeAt: number }[] = Array.from({ length: c }, () => ({
@@ -128,8 +134,8 @@ export default function Customers({ customers, c, clockRef, advance }: Props) {
   return (
     <group>
       <instancedMesh ref={bodyRef} args={[undefined, undefined, MAX_VISIBLE]}>
-        <capsuleGeometry args={[0.2, 0.5, 6, 12]} />
-        <meshStandardMaterial vertexColors roughness={0.4} metalness={0.05} />
+        <capsuleGeometry args={[0.24, 0.55, 6, 14]} />
+        <meshStandardMaterial vertexColors roughness={0.35} metalness={0.05} />
         <instancedBufferAttribute
           ref={(attr) => { colorAttrBody.current = attr; }}
           attach="instanceColor"
@@ -137,8 +143,8 @@ export default function Customers({ customers, c, clockRef, advance }: Props) {
         />
       </instancedMesh>
       <instancedMesh ref={headRef} args={[undefined, undefined, MAX_VISIBLE]}>
-        <sphereGeometry args={[0.16, 12, 12]} />
-        <meshStandardMaterial vertexColors roughness={0.3} metalness={0.1} emissive={new THREE.Color(0x444444)} emissiveIntensity={0.15} />
+        <sphereGeometry args={[0.19, 14, 14]} />
+        <meshStandardMaterial vertexColors roughness={0.25} metalness={0.05} emissive={new THREE.Color(0x333333)} emissiveIntensity={0.2} />
         <instancedBufferAttribute
           ref={(attr) => { colorAttrHead.current = attr; }}
           attach="instanceColor"

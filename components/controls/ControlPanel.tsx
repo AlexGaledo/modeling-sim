@@ -29,10 +29,10 @@ export default function ControlPanel() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#555]">Orders per hour by type</h2>
+        <h2 className="text-base font-semibold text-[#555]">Customers (arriving in 1 hour)</h2>
         <div className="flex items-center gap-2 rounded-md border border-[#ddd] bg-[#f8f6f3] px-2.5 py-1.5">
           <span className="text-[10px] uppercase tracking-wide text-[#999]">Total</span>
-          <span className="font-mono text-sm text-[#333]">{total}/hr</span>
+          <span className="font-mono text-sm text-[#333]">{total}</span>
         </div>
         <Slider
           label="Walk-in"

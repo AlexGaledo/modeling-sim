@@ -15,27 +15,22 @@ import {
 import { runSimulation } from "@/lib/sim/engine";
 import { selectSimParams, useAppStore } from "@/lib/store";
 import { combineStats } from "@/lib/hooks/useSim";
-import { economicsFromStats } from "@/lib/sim/economics";
 import type { SimParams } from "@/lib/sim/types";
 
 interface Row {
-  load: number;
-  singleProfit: number;
-  multiProfit: number;
-  singleAvgTime: number | null;
-  multiAvgTime: number | null;
+  totalCustomers: number;
+  singleServed: number;
+  multiServed: number;
 }
 
-const SWEEP_MIN = 20;
+const SWEEP_MIN = 30;
 const SWEEP_MAX = 300;
-const SWEEP_STEP = 20;
+const SWEEP_STEP = 30;
 
 export default function ComparePanel() {
   const base = useAppStore(selectSimParams);
   const baristas = useAppStore((s) => s.baristas);
   const baristasPerChannel = useAppStore((s) => s.baristasPerChannel);
-  const hourlyWage = useAppStore((s) => s.hourlyWage);
-  const profitPerDrink = useAppStore((s) => s.profitPerDrink);
   const walkinPct = base.mix.walkin;
   const pickupPct = base.mix.pickup;
   const deliveryPct = base.mix.delivery;
@@ -43,13 +38,13 @@ export default function ComparePanel() {
 
   const data = useMemo<Row[]>(() => {
     const rows: Row[] = [];
-    for (let load = SWEEP_MIN; load <= SWEEP_MAX; load += SWEEP_STEP) {
-      const lambda = load / 60;
+    for (let total = SWEEP_MIN; total <= SWEEP_MAX; total += SWEEP_STEP) {
+      const lambda = total / 60;
 
       // Single-channel: one mixed queue, c baristas
       const single = runSimulation({ ...base, lambda, c: baristas });
 
-      // Multi-channel: per-type queues, each with baristasPerChannel servers
+      // Multi-channel: per-type queues
       const multiChannels = [
         walkinPct > 0 ? runSimulation({ ...base, lambda: lambda * walkinPct, c: baristasPerChannel, mix: { walkin: 1, pickup: 0, delivery: 0 }, seed: base.seed + 1 } satisfies SimParams) : null,
         pickupPct > 0 ? runSimulation({ ...base, lambda: lambda * pickupPct, c: baristasPerChannel, mix: { walkin: 0, pickup: 1, delivery: 0 }, seed: base.seed + 2 } satisfies SimParams) : null,
@@ -58,28 +53,23 @@ export default function ComparePanel() {
 
       const multiStats = combineStats(multiChannels.map((r) => r.stats));
 
-      const eS = economicsFromStats(single.stats, { baristas, hourlyWage, profitPerDrink });
-      const eM = economicsFromStats(multiStats, { baristas: baristasPerChannel * activeChannels, hourlyWage, profitPerDrink });
-
       rows.push({
-        load,
-        singleProfit: eS.profitPerHour,
-        multiProfit: eM.profitPerHour,
-        singleAvgTime: single.stats.unstable ? null : single.stats.meanW,
-        multiAvgTime: multiStats.unstable ? null : multiStats.meanW,
+        totalCustomers: total,
+        singleServed: single.stats.ordersServed,
+        multiServed: multiStats.ordersServed,
       });
     }
     return rows;
-  }, [base, baristas, baristasPerChannel, hourlyWage, profitPerDrink, walkinPct, pickupPct, deliveryPct, activeChannels]);
+  }, [base, baristas, baristasPerChannel, walkinPct, pickupPct, deliveryPct]);
 
-  const currentLoad = base.lambda * 60;
+  const currentTotal = useAppStore((s) => s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour);
 
   return (
     <div className="space-y-4">
-      <Chart title="Profit per hour vs load" dataKey1="singleProfit" dataKey2="multiProfit" data={data} cursor={currentLoad} unit="$" />
-      <Chart title="Avg time per order vs load (gap = unstable)" dataKey1="singleAvgTime" dataKey2="multiAvgTime" data={data} cursor={currentLoad} unit="min" />
+      <Chart title="Customers served in 1 hour vs total arriving" dataKey1="singleServed" dataKey2="multiServed" data={data} cursor={currentTotal} />
       <p className="text-xs opacity-60">
         Single queue (c={baristas}, all types mixed) vs per-type queues (c={baristasPerChannel} × {activeChannels} channels).
+        Higher line = more customers served within the hour.
       </p>
     </div>
   );
@@ -91,14 +81,12 @@ function Chart({
   dataKey2,
   data,
   cursor,
-  unit,
 }: {
   title: string;
   dataKey1: keyof Row;
   dataKey2: keyof Row;
   data: Row[];
   cursor: number;
-  unit: string;
 }) {
   return (
     <div>
@@ -107,8 +95,8 @@ function Chart({
         <ResponsiveContainer>
           <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 0 }}>
             <CartesianGrid stroke="#ffffff10" />
-            <XAxis dataKey="load" stroke="#f1ece4" tick={{ fontSize: 10 }} />
-            <YAxis stroke="#f1ece4" tick={{ fontSize: 10 }} width={50} unit={unit} />
+            <XAxis dataKey="totalCustomers" stroke="#f1ece4" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#f1ece4" tick={{ fontSize: 10 }} width={50} />
             <Tooltip contentStyle={{ background: "#1e3932", border: "1px solid #ffffff20" }} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <ReferenceLine x={cursor} stroke="#ffb86b" strokeDasharray="3 3" />

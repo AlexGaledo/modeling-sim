@@ -28,10 +28,12 @@ export default function Scene() {
       >
         <color attach="background" args={["#e8e0d6"]} />
 
-        <hemisphereLight args={["#fff8f0", "#8ab4a0", 1.0]} />
-        <directionalLight position={[12, 20, 10]} intensity={1.5} />
-        <directionalLight position={[-8, 12, -6]} intensity={0.6} />
-        <ambientLight intensity={0.4} />
+        <hemisphereLight args={["#fff0e0", "#8ab4a0", 1.2]} />
+        <directionalLight position={[12, 20, 10]} intensity={1.8} castShadow={false} />
+        <directionalLight position={[-8, 12, -6]} intensity={0.7} />
+        <ambientLight intensity={0.3} />
+        {/* Warm accent on counter area */}
+        <pointLight position={[2, 4, 2]} intensity={0.8} color="#ffdd88" distance={12} />
 
         <SceneContent
           result={result}
