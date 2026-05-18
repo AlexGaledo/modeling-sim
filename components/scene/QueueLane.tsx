@@ -23,8 +23,15 @@ export function queueSlotPosition(slotIndex: number): [number, number, number] {
   return [LANE_X_HEAD - slotIndex * LANE_SPACING, 0, LANE_Z];
 }
 
+export const PICKUP_LANE_X = -0.5;
+export const PICKUP_LANE_Z = 5;
+
 export function deliveryQueueSlotPosition(slotIndex: number): [number, number, number] {
   return [DELIVERY_LANE_X - slotIndex * LANE_SPACING, 0, DELIVERY_LANE_Z];
+}
+
+export function pickupQueueSlotPosition(slotIndex: number): [number, number, number] {
+  return [PICKUP_LANE_X - slotIndex * LANE_SPACING, 0, PICKUP_LANE_Z];
 }
 
 export function stationPosition(stationId: number, totalStations: number): [number, number, number] {
