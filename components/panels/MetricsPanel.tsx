@@ -1,6 +1,7 @@
 "use client";
 
-import { useSim, type ChannelRunResult } from "@/lib/hooks/useSim";
+import { useSim, type ChannelRunResult, type MultiRunResult } from "@/lib/hooks/useSim";
+import { economicsFromStats } from "@/lib/sim/economics";
 import type { SimStats } from "@/lib/sim/types";
 import { useAppStore } from "@/lib/store";
 import ComparePanel from "./ComparePanel";
@@ -27,7 +28,7 @@ export default function MetricsPanel() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Throughput banner — primary metric                                   */
+/*  Banner                                                              */
 /* ------------------------------------------------------------------ */
 
 function ThroughputBanner({ served, total, label }: { served: number; total: number; label: string }) {
@@ -47,89 +48,107 @@ function ThroughputBanner({ served, total, label }: { served: number; total: num
 }
 
 /* ------------------------------------------------------------------ */
-/*  Single-channel result                                                */
+/*  Economics block — shared by single + multi                          */
 /* ------------------------------------------------------------------ */
 
-function SingleResultView({ stats }: { stats: SimStats }) {
-  const total = useAppStore((s) => s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour);
-  const arrived = stats.ordersServed + stats.ordersUnfinished;
+function EconomicsBlock({ stats }: { stats: SimStats }) {
+  const hourlyWage = useAppStore((s) => s.hourlyWage);
+  const profitPerDrink = useAppStore((s) => s.profitPerDrink);
+  const econ = economicsFromStats(stats, { hourlyWage, profitPerDrink });
+  const profitPositive = econ.profitPerHour >= 0;
 
   return (
-    <>
-      <ThroughputBanner served={stats.ordersServed} total={total} label="SINGLE QUEUE" />
-
+    <div className="space-y-2">
+      <div className="text-[10px] uppercase tracking-wide text-[#999]">Economics (per hour)</div>
       <div className="grid grid-cols-2 gap-2">
-        <Kpi label="Orders arrived" value={String(arrived)} />
-        <Kpi label="Orders served" value={String(stats.ordersServed)} highlight />
-        <Kpi label="Unfinished" value={String(stats.ordersUnfinished)} />
-        <Kpi label="Max queue" value={String(stats.maxQueueLength)} />
-        <Kpi label="Avg wait (Wq)" value={`${stats.meanWq.toFixed(1)} min`} />
-        <Kpi label="Avg time in sys" value={`${stats.meanW.toFixed(1)} min`} />
-      </div>
-
-      <ServedByType stats={stats} />
-
-      {stats.unstable && (
-        <span className="inline-block rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
-          UNSTABLE (ρ = {stats.rho.toFixed(2)})
-        </span>
-      )}
-    </>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Multi-channel result                                                 */
-/* ------------------------------------------------------------------ */
-
-function MultiResultView({ result }: { result: import("@/lib/hooks/useSim").MultiRunResult }) {
-  const total = useAppStore((s) => s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour);
-
-  return (
-    <>
-      <ThroughputBanner served={result.stats.ordersServed} total={total} label="PER-TYPE QUEUES" />
-
-      {/* Per-channel cards */}
-      <div className="space-y-2">
-        <div className="text-[10px] uppercase tracking-wide text-[#999]">Per channel</div>
-        {result.channels.map((ch) => (
-          <ChannelCard key={ch.type} channel={ch} />
-        ))}
-      </div>
-    </>
-  );
-}
-
-function ChannelCard({ channel }: { channel: ChannelRunResult }) {
-  const s = channel.stats;
-  const totalOfType =
-    channel.type === "walkin"
-      ? useAppStore.getState().walkinPerHour
-      : channel.type === "pickup"
-        ? useAppStore.getState().pickupPerHour
-        : useAppStore.getState().deliveryPerHour;
-  const color = channel.type === "walkin" ? "#ff6b6b" : channel.type === "pickup" ? "#ffd93d" : "#6bcbff";
-  const arrived = s.ordersServed + s.ordersUnfinished;
-
-  return (
-    <div className="rounded-md border border-[#ddd] bg-[#f8f6f3] px-2.5 py-1.5">
-      <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
-        <span>●</span>
-        <span className="capitalize">{channel.type}</span>
-        {s.unstable && <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">UNSTABLE</span>}
-      </div>
-      <div className="mt-1 grid grid-cols-4 gap-1">
-        <MiniKpi label="Served" value={`${s.ordersServed}/${totalOfType}`} />
-        <MiniKpi label="Arrived" value={String(arrived)} />
-        <MiniKpi label="Wq" value={`${s.meanWq.toFixed(1)}m`} />
-        <MiniKpi label="ρ" value={s.rho.toFixed(2)} />
+        <Kpi label="Revenue" value={`$${econ.revenuePerHour.toFixed(2)}`} />
+        <Kpi label="Labor" value={`$${econ.laborCostPerHour.toFixed(2)}`} />
+        <Kpi
+          label="Profit"
+          value={`${profitPositive ? "" : "−"}$${Math.abs(econ.profitPerHour).toFixed(2)}`}
+          highlight={profitPositive}
+        />
+        <Kpi label="Break-even drinks" value={String(econ.breakEvenDrinks)} />
       </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Shared components                                                   */
+/*  Single                                                              */
+/* ------------------------------------------------------------------ */
+
+function SingleResultView({ stats }: { stats: SimStats }) {
+  const total = useAppStore((s) => s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour);
+
+  return (
+    <>
+      <ThroughputBanner served={stats.drinksServed} total={total} label="SINGLE QUEUE" />
+
+      <div className="grid grid-cols-2 gap-2">
+        <Kpi label="Orders arrived" value={String(total)} />
+        <Kpi label="Drinks served" value={String(stats.drinksServed)} highlight />
+        <Kpi label="Unserved" value={String(stats.customersUnserved)} />
+        <Kpi label="Drinks / barista" value={String(stats.drinksPerBarista)} />
+      </div>
+
+      <ServedByType stats={stats} />
+      <EconomicsBlock stats={stats} />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Multi                                                               */
+/* ------------------------------------------------------------------ */
+
+function MultiResultView({ result }: { result: MultiRunResult }) {
+  const total = useAppStore((s) => s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour);
+  const totalIdle = result.channels.reduce((sum, ch) => sum + ch.stats.idleBaristaMinutes, 0);
+
+  return (
+    <>
+      <ThroughputBanner served={result.stats.drinksServed} total={total} label="PER-TYPE QUEUES" />
+
+      <div className="grid grid-cols-2 gap-2">
+        <Kpi label="Drinks served" value={String(result.stats.drinksServed)} highlight />
+        <Kpi label="Unserved" value={String(result.stats.customersUnserved)} />
+        <Kpi label="Drinks / barista" value={String(result.stats.drinksPerBarista)} />
+        <Kpi label="Idle barista-min" value={String(totalIdle)} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-wide text-[#999]">Per channel</div>
+        {result.channels.map((ch) => (
+          <ChannelCard key={ch.type} channel={ch} />
+        ))}
+      </div>
+
+      <EconomicsBlock stats={result.stats} />
+    </>
+  );
+}
+
+function ChannelCard({ channel }: { channel: ChannelRunResult }) {
+  const s = channel.stats;
+  const color = channel.type === "walkin" ? "#ff6b6b" : channel.type === "pickup" ? "#ffd93d" : "#6bcbff";
+  return (
+    <div className="rounded-md border border-[#ddd] bg-[#f8f6f3] px-2.5 py-1.5">
+      <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
+        <span>●</span>
+        <span className="capitalize">{channel.type}</span>
+      </div>
+      <div className="mt-1 grid grid-cols-3 gap-1">
+        <MiniKpi label="Served" value={`${s.drinksServed}/${s.customersTotal}`} />
+        <MiniKpi label="Unserved" value={String(s.customersUnserved)} />
+        <MiniKpi label="Idle min" value={String(s.idleBaristaMinutes)} />
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bits                                                                */
 /* ------------------------------------------------------------------ */
 
 function ServedByType({ stats }: { stats: SimStats }) {
