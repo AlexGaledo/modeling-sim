@@ -13,81 +13,121 @@ import {
   YAxis,
 } from "recharts";
 import { runSimulation } from "@/lib/sim/engine";
+import { compareScenarios } from "@/lib/sim/economics";
 import { selectSimParams, useAppStore } from "@/lib/store";
-import { combineStats } from "@/lib/hooks/useSim";
 import type { SimParams } from "@/lib/sim/types";
 
-interface Row {
-  totalCustomers: number;
-  singleServed: number;
-  multiServed: number;
+/* ------------------------------------------------------------------ */
+/*  Cumulative-drinks step chart (revised §8)                           */
+/* ------------------------------------------------------------------ */
+
+interface CumRow {
+  minute: number;
+  single: number;
+  multi: number;
 }
 
-const SWEEP_MIN = 30;
-const SWEEP_MAX = 300;
-const SWEEP_STEP = 30;
+function cumulativeRows(params: SimParams): CumRow[] {
+  const single = runSimulation({ ...params, mode: "single" });
+  const multi = runSimulation({ ...params, mode: "multi" });
+
+  const rows: CumRow[] = [];
+  for (let t = 0; t <= params.horizonMinutes; t++) {
+    const s = single.customers.filter((c) => (c.departureTime ?? Infinity) <= t).length;
+    const m = multi.customers.filter((c) => (c.departureTime ?? Infinity) <= t).length;
+    rows.push({ minute: t, single: s, multi: m });
+  }
+  return rows;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Walk-in load sweep                                                  */
+/* ------------------------------------------------------------------ */
+
+interface SweepRow {
+  walkin: number;
+  singleServed: number;
+  multiServed: number;
+  deltaProfit: number;
+}
+
+function sweepWalkin(base: SimParams, hourlyWage: number, profitPerDrink: number): SweepRow[] {
+  const rows: SweepRow[] = [];
+  for (let walkin = 0; walkin <= 100; walkin += 10) {
+    const params: SimParams = {
+      ...base,
+      customersByType: { ...base.customersByType, walkin },
+    };
+    const single = runSimulation({ ...params, mode: "single" });
+    const multi = runSimulation({ ...params, mode: "multi" });
+    const cmp = compareScenarios({
+      single: single.stats,
+      multi: multi.stats,
+      hourlyWage,
+      profitPerDrink,
+    });
+    rows.push({
+      walkin,
+      singleServed: single.stats.drinksServed,
+      multiServed: multi.stats.drinksServed,
+      deltaProfit: cmp.deltaProfit,
+    });
+  }
+  return rows;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Panel                                                               */
+/* ------------------------------------------------------------------ */
 
 export default function ComparePanel() {
   const base = useAppStore(selectSimParams);
-  const baristas = useAppStore((s) => s.baristas);
-  const baristasPerChannel = useAppStore((s) => s.baristasPerChannel);
-  const walkinPct = base.mix.walkin;
-  const pickupPct = base.mix.pickup;
-  const deliveryPct = base.mix.delivery;
-  const activeChannels = [walkinPct, pickupPct, deliveryPct].filter((p) => p > 0).length;
+  const hourlyWage = useAppStore((s) => s.hourlyWage);
+  const profitPerDrink = useAppStore((s) => s.profitPerDrink);
+  const walkinCursor = useAppStore((s) => s.walkinPerHour);
 
-  const data = useMemo<Row[]>(() => {
-    const rows: Row[] = [];
-    for (let total = SWEEP_MIN; total <= SWEEP_MAX; total += SWEEP_STEP) {
-      const lambda = total / 60;
-
-      // Single-channel: one mixed queue, c baristas
-      const single = runSimulation({ ...base, lambda, c: baristas });
-
-      // Multi-channel: per-type queues
-      const multiChannels = [
-        walkinPct > 0 ? runSimulation({ ...base, lambda: lambda * walkinPct, c: baristasPerChannel, mix: { walkin: 1, pickup: 0, delivery: 0 }, seed: base.seed + 1 } satisfies SimParams) : null,
-        pickupPct > 0 ? runSimulation({ ...base, lambda: lambda * pickupPct, c: baristasPerChannel, mix: { walkin: 0, pickup: 1, delivery: 0 }, seed: base.seed + 2 } satisfies SimParams) : null,
-        deliveryPct > 0 ? runSimulation({ ...base, lambda: lambda * deliveryPct, c: baristasPerChannel, mix: { walkin: 0, pickup: 0, delivery: 1 }, seed: base.seed + 3 } satisfies SimParams) : null,
-      ].filter((r): r is NonNullable<typeof r> => r !== null);
-
-      const multiStats = combineStats(multiChannels.map((r) => r.stats));
-
-      rows.push({
-        totalCustomers: total,
-        singleServed: single.stats.ordersServed,
-        multiServed: multiStats.ordersServed,
-      });
-    }
-    return rows;
-  }, [base, baristas, baristasPerChannel, walkinPct, pickupPct, deliveryPct]);
-
-  const currentTotal = useAppStore((s) => s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour);
+  const cumData = useMemo(() => cumulativeRows(base), [base]);
+  const sweepData = useMemo(
+    () => sweepWalkin(base, hourlyWage, profitPerDrink),
+    [base, hourlyWage, profitPerDrink],
+  );
 
   return (
-    <div className="space-y-4">
-      <Chart title="Customers served in 1 hour vs total arriving" dataKey1="singleServed" dataKey2="multiServed" data={data} cursor={currentTotal} />
-      <p className="text-xs opacity-60">
-        Single queue (c={baristas}, all types mixed) vs per-type queues (c={baristasPerChannel} × {activeChannels} channels).
-        Higher line = more customers served within the hour.
-      </p>
+    <div className="space-y-5">
+      <Chart
+        title="Cumulative drinks completed over the hour"
+        xKey="minute"
+        xLabel="min"
+        data={cumData as unknown as Array<Record<string, number>>}
+        cursor={null}
+      />
+      <Chart
+        title="Drinks served vs walk-in count (pickup & delivery held fixed)"
+        xKey="walkin"
+        xLabel="walkin"
+        data={sweepData as unknown as Array<Record<string, number>>}
+        cursor={walkinCursor}
+      />
+      <DeltaChart data={sweepData} cursor={walkinCursor} />
     </div>
   );
 }
 
 function Chart({
   title,
-  dataKey1,
-  dataKey2,
+  xKey,
+  xLabel,
   data,
   cursor,
 }: {
   title: string;
-  dataKey1: keyof Row;
-  dataKey2: keyof Row;
-  data: Row[];
-  cursor: number;
+  xKey: string;
+  xLabel: string;
+  data: Array<Record<string, number>>;
+  cursor: number | null;
 }) {
+  const singleKey = xKey === "minute" ? "single" : "singleServed";
+  const multiKey = xKey === "minute" ? "multi" : "multiServed";
   return (
     <div>
       <div className="mb-1 text-xs opacity-80">{title}</div>
@@ -95,13 +135,34 @@ function Chart({
         <ResponsiveContainer>
           <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 0 }}>
             <CartesianGrid stroke="#ffffff10" />
-            <XAxis dataKey="totalCustomers" stroke="#f1ece4" tick={{ fontSize: 10 }} />
-            <YAxis stroke="#f1ece4" tick={{ fontSize: 10 }} width={50} />
-            <Tooltip contentStyle={{ background: "#1e3932", border: "1px solid #ffffff20" }} />
+            <XAxis dataKey={xKey} stroke="#888" tick={{ fontSize: 10 }} label={{ value: xLabel, position: "insideBottomRight", offset: -2, fontSize: 10 }} />
+            <YAxis stroke="#888" tick={{ fontSize: 10 }} width={40} />
+            <Tooltip contentStyle={{ background: "#1e3932", border: "1px solid #ffffff20", color: "#fff" }} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
+            {cursor !== null && <ReferenceLine x={cursor} stroke="#ffb86b" strokeDasharray="3 3" />}
+            <Line type="stepAfter" dataKey={singleKey} name="single queue" stroke="#f87171" dot={false} />
+            <Line type="stepAfter" dataKey={multiKey} name="per-type queues" stroke="#34d399" dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function DeltaChart({ data, cursor }: { data: SweepRow[]; cursor: number }) {
+  return (
+    <div>
+      <div className="mb-1 text-xs opacity-80">ΔProfit (multi − single) vs walk-in count</div>
+      <div className="h-32 w-full">
+        <ResponsiveContainer>
+          <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 0 }}>
+            <CartesianGrid stroke="#ffffff10" />
+            <XAxis dataKey="walkin" stroke="#888" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#888" tick={{ fontSize: 10 }} width={40} />
+            <Tooltip contentStyle={{ background: "#1e3932", border: "1px solid #ffffff20", color: "#fff" }} />
+            <ReferenceLine y={0} stroke="#888" />
             <ReferenceLine x={cursor} stroke="#ffb86b" strokeDasharray="3 3" />
-            <Line type="monotone" dataKey={dataKey1 as string} name="single queue" stroke="#f87171" dot={false} connectNulls={false} />
-            <Line type="monotone" dataKey={dataKey2 as string} name="per-type queues" stroke="#34d399" dot={false} connectNulls={false} />
+            <Line type="monotone" dataKey="deltaProfit" name="ΔProfit ($/hr)" stroke="#a78bfa" dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>

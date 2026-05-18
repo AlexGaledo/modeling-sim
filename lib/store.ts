@@ -2,8 +2,8 @@
 
 import { create } from "zustand";
 import { DEFAULT_HOURLY_WAGE, DEFAULT_PROFIT_PER_DRINK } from "./sim/economics";
-import { DEFAULT_SERVICE_MULTIPLIERS } from "./sim/engine";
-import type { OrderMix, ProfitPerDrink, ServiceMultipliers } from "./sim/types";
+import { DEFAULT_CUSTOMERS_BY_TYPE, DEFAULT_SERVICE_TIME_MINUTES } from "./sim/engine";
+import type { SimMode, SimParams } from "./sim/types";
 
 export type Mode = "single" | "multi" | "compare";
 export type PlayState = "idle" | "running" | "done";
@@ -15,16 +15,12 @@ export interface AppState {
   baristas: number;
   baristasPerChannel: number;
   serviceTimeMinutes: number;
+  hourlyWage: number;
+  profitPerDrink: number;
   mode: Mode;
   simSpeed: number;
 
-  // Hidden defaults (not exposed as sliders)
-  serviceMultipliers: ServiceMultipliers;
-  hourlyWage: number;
-  profitPerDrink: ProfitPerDrink;
-  seed: number;
   horizonMinutes: number;
-  warmupMinutes: number;
 
   // Play control
   playState: PlayState;
@@ -36,6 +32,8 @@ export interface AppState {
   setBaristas: (v: number) => void;
   setBaristasPerChannel: (v: number) => void;
   setServiceTimeMinutes: (v: number) => void;
+  setHourlyWage: (v: number) => void;
+  setProfitPerDrink: (v: number) => void;
   setMode: (m: Mode) => void;
   setSimSpeed: (v: number) => void;
   play: () => void;
@@ -43,21 +41,18 @@ export interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  walkinPerHour: 50,
-  pickupPerHour: 30,
-  deliveryPerHour: 20,
-  baristas: 2,
+  walkinPerHour: DEFAULT_CUSTOMERS_BY_TYPE.walkin,
+  pickupPerHour: DEFAULT_CUSTOMERS_BY_TYPE.pickup,
+  deliveryPerHour: DEFAULT_CUSTOMERS_BY_TYPE.delivery,
+  baristas: 3,
   baristasPerChannel: 1,
-  serviceTimeMinutes: 5,
+  serviceTimeMinutes: DEFAULT_SERVICE_TIME_MINUTES,
+  hourlyWage: DEFAULT_HOURLY_WAGE,
+  profitPerDrink: DEFAULT_PROFIT_PER_DRINK,
   mode: "single",
   simSpeed: 10,
 
-  serviceMultipliers: { ...DEFAULT_SERVICE_MULTIPLIERS },
-  hourlyWage: DEFAULT_HOURLY_WAGE,
-  profitPerDrink: { ...DEFAULT_PROFIT_PER_DRINK },
-  seed: (Math.random() * 2 ** 31) | 0,
   horizonMinutes: 60,
-  warmupMinutes: 5,
 
   playState: "idle",
   runId: 0,
@@ -68,28 +63,30 @@ export const useAppStore = create<AppState>((set) => ({
   setBaristas: (v) => set({ baristas: v }),
   setBaristasPerChannel: (v) => set({ baristasPerChannel: v }),
   setServiceTimeMinutes: (v) => set({ serviceTimeMinutes: v }),
+  setHourlyWage: (v) => set({ hourlyWage: v }),
+  setProfitPerDrink: (v) => set({ profitPerDrink: v }),
   setMode: (m) => set({ mode: m }),
   setSimSpeed: (v) => set({ simSpeed: v }),
   play: () => set((s) => ({ playState: "running", runId: s.runId + 1 })),
   reset: () => set({ playState: "idle", runId: 0 }),
 }));
 
-/** Base SimParams template — consumers override c / mix / lambda per mode. */
-export function selectSimParams(s: AppState) {
-  const total = s.walkinPerHour + s.pickupPerHour + s.deliveryPerHour;
+/**
+ * Build SimParams for the deterministic engine. Compare mode runs both
+ * sub-scenarios, so consumers may override `mode` when calling.
+ */
+export function selectSimParams(s: AppState): SimParams {
+  const simMode: SimMode = s.mode === "multi" ? "multi" : "single";
   return {
-    lambda: total > 0 ? total / 60 : 0.01,
-    mu: 1 / s.serviceTimeMinutes,
-    c: s.baristas,
-    mix: {
-      walkin: total > 0 ? s.walkinPerHour / total : 1 / 3,
-      pickup: total > 0 ? s.pickupPerHour / total : 1 / 3,
-      delivery: total > 0 ? s.deliveryPerHour / total : 1 / 3,
-    } satisfies OrderMix,
-    serviceMultipliers: s.serviceMultipliers,
-    arrivalMode: "poisson" as const,
-    seed: s.seed,
+    serviceTimeMinutes: s.serviceTimeMinutes,
+    baristas: s.baristas,
+    baristasPerChannel: s.baristasPerChannel,
+    customersByType: {
+      walkin: s.walkinPerHour,
+      pickup: s.pickupPerHour,
+      delivery: s.deliveryPerHour,
+    },
     horizonMinutes: s.horizonMinutes,
-    warmupMinutes: s.warmupMinutes,
+    mode: simMode,
   };
 }

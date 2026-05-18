@@ -1,64 +1,88 @@
-import type { PerTypeCount, ProfitPerDrink, SimStats } from "./types";
+import type { SimStats } from "./types";
 
-export interface EconomicInputs {
-  /** drinks served per type, over the measured window (after warmup) */
-  drinksServedByType: PerTypeCount;
-  /** measured simulated minutes (post-warmup) */
-  measuredMinutes: number;
-  /** number of baristas (c) */
-  baristas: number;
-  /** wage per barista, currency / hour */
-  hourlyWage: number;
-  /** profit per drink by type, currency */
-  profitPerDrink: ProfitPerDrink;
-}
+/**
+ * Economic model per formula-revised.md §6 and §7.
+ * Deterministic, hourly. drinks × profit − baristas × wage.
+ */
 
 export interface EconomicMetrics {
-  /** Σ drinks_by_type · profit_by_type / measured hours */
   revenuePerHour: number;
-  /** c · wage */
   laborCostPerHour: number;
-  /** revenue − labor */
   profitPerHour: number;
+  breakEvenDrinks: number;
 }
 
-export function revenuePerHour(
-  drinks: PerTypeCount,
-  profit: ProfitPerDrink,
-  measuredMinutes: number,
-): number {
-  if (measuredMinutes <= 0) return 0;
-  const total =
-    drinks.walkin * profit.walkin +
-    drinks.pickup * profit.pickup +
-    drinks.delivery * profit.delivery;
-  return total / (measuredMinutes / 60);
-}
-
-export function laborCostPerHour(baristas: number, hourlyWage: number): number {
-  return baristas * hourlyWage;
-}
-
-export function economicsFromStats(stats: SimStats, opts: {
-  baristas: number;
-  hourlyWage: number;
-  profitPerDrink: ProfitPerDrink;
-}): EconomicMetrics {
-  const rev = revenuePerHour(stats.drinksServedByType, opts.profitPerDrink, stats.measuredMinutes);
-  const labor = laborCostPerHour(opts.baristas, opts.hourlyWage);
-  return { revenuePerHour: rev, laborCostPerHour: labor, profitPerHour: rev - labor };
-}
-
-/** Core KPI from simulation.md §2.4: total queue time / order count, in minutes. */
-export function averageTimePerOrder(stats: SimStats): number {
-  return stats.meanW;
-}
-
-/** Defaults matching simulation.md §2.3. */
-export const DEFAULT_PROFIT_PER_DRINK: ProfitPerDrink = {
-  walkin: 3.5,
-  pickup: 3.5,
-  delivery: 2.0,
-};
-
+export const DEFAULT_PROFIT_PER_DRINK = 3.5;
 export const DEFAULT_HOURLY_WAGE = 18;
+
+export function revenuePerHour(drinksServed: number, profitPerDrink: number): number {
+  return drinksServed * profitPerDrink;
+}
+
+export function laborCostPerHour(totalBaristas: number, hourlyWage: number): number {
+  return totalBaristas * hourlyWage;
+}
+
+export function profitPerHour(
+  drinksServed: number,
+  totalBaristas: number,
+  profitPerDrink: number,
+  hourlyWage: number,
+): number {
+  return revenuePerHour(drinksServed, profitPerDrink) - laborCostPerHour(totalBaristas, hourlyWage);
+}
+
+export function breakEvenDrinks(
+  totalBaristas: number,
+  hourlyWage: number,
+  profitPerDrink: number,
+): number {
+  if (profitPerDrink <= 0) return Infinity;
+  return Math.ceil((totalBaristas * hourlyWage) / profitPerDrink);
+}
+
+export function economicsFromStats(
+  stats: SimStats,
+  opts: { hourlyWage: number; profitPerDrink: number },
+): EconomicMetrics {
+  const rev = revenuePerHour(stats.drinksServed, opts.profitPerDrink);
+  const labor = laborCostPerHour(stats.totalBaristas, opts.hourlyWage);
+  return {
+    revenuePerHour: rev,
+    laborCostPerHour: labor,
+    profitPerHour: rev - labor,
+    breakEvenDrinks: breakEvenDrinks(stats.totalBaristas, opts.hourlyWage, opts.profitPerDrink),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cross-scenario comparison (revised §7)                              */
+/* ------------------------------------------------------------------ */
+
+export interface CompareInputs {
+  single: SimStats;
+  multi: SimStats;
+  hourlyWage: number;
+  profitPerDrink: number;
+}
+
+export interface CompareResult {
+  extraDrinks: number;
+  deltaProfit: number;
+  /** Required profit/drink for ΔProfit = 0 when barista counts differ. null otherwise. */
+  requiredProfitPerDrink: number | null;
+}
+
+export function compareScenarios({ single, multi, hourlyWage, profitPerDrink }: CompareInputs): CompareResult {
+  const extraDrinks = single.drinksServed - multi.drinksServed;
+  const deltaProfit =
+    profitPerHour(multi.drinksServed, multi.totalBaristas, profitPerDrink, hourlyWage) -
+    profitPerHour(single.drinksServed, single.totalBaristas, profitPerDrink, hourlyWage);
+
+  const drinkDiff = multi.drinksServed - single.drinksServed;
+  const baristaDiff = multi.totalBaristas - single.totalBaristas;
+  const requiredProfitPerDrink =
+    drinkDiff !== 0 ? (baristaDiff * hourlyWage) / drinkDiff : null;
+
+  return { extraDrinks, deltaProfit, requiredProfitPerDrink };
+}
