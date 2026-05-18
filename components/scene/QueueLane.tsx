@@ -24,7 +24,7 @@ export function queueSlotPosition(slotIndex: number): [number, number, number] {
 }
 
 export const PICKUP_LANE_X = -0.5;
-export const PICKUP_LANE_Z = 5;
+export const PICKUP_LANE_Z = 5.5;
 
 export function deliveryQueueSlotPosition(slotIndex: number): [number, number, number] {
   return [DELIVERY_LANE_X - slotIndex * LANE_SPACING, 0, DELIVERY_LANE_Z];
@@ -34,7 +34,7 @@ export function pickupQueueSlotPosition(slotIndex: number): [number, number, num
   return [PICKUP_LANE_X - slotIndex * LANE_SPACING, 0, PICKUP_LANE_Z];
 }
 
-export const COUNTER_FRONT_X = 0.75;
+export const COUNTER_FRONT_X = 0.55;
 
 export function stationPosition(stationId: number, totalStations: number): [number, number, number] {
   const zOffset = (stationId - (totalStations - 1) / 2) * STATION_SPACING_Z;

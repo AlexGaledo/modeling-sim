@@ -69,6 +69,7 @@ function SceneContent({
   horizon: number;
 }) {
   const { ref: clockRef, advance } = useSimClock(horizon);
+  const runId = useAppStore((s) => s.runId);
 
   return (
     <>
@@ -76,17 +77,21 @@ function SceneContent({
       <QueueLane />
       <BaristaStations c={c} />
       <FloorLabels c={c} mode={mode as "single" | "multi" | "compare"} />
-      <Customers
-        customers={result.customers}
-        c={c}
-        clockRef={clockRef}
-        advance={advance}
-      />
-      <DrinkTickets
-        customers={result.customers}
-        mode={mode as "single" | "multi" | "compare"}
-        clockRef={clockRef}
-      />
+      {runId > 0 && (
+        <Customers
+          customers={result.customers}
+          c={c}
+          clockRef={clockRef}
+          advance={advance}
+        />
+      )}
+      {runId > 0 && (
+        <DrinkTickets
+          customers={result.customers}
+          mode={mode as "single" | "multi" | "compare"}
+          clockRef={clockRef}
+        />
+      )}
     </>
   );
 }

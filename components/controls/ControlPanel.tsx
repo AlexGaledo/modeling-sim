@@ -80,7 +80,7 @@ export default function ControlPanel() {
         <Slider
           label="Barista wage ($/hr)"
           value={s.hourlyWage}
-          min={10}
+          min={1}
           max={20}
           step={1}
           format={(v) => `$${v}`}
