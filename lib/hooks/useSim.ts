@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { runSimulation } from "@/lib/sim/engine";
-import { selectSimParams, useAppStore } from "@/lib/store";
-import type { Customer, OrderType, SimStats } from "@/lib/sim/types";
+import { useAppStore } from "@/lib/store";
+import type { Customer, OrderType, SimParams, SimStats } from "@/lib/sim/types";
+import type { SimMode } from "@/lib/sim/types";
 
 export interface ChannelRunResult {
   type: OrderType;
@@ -11,7 +12,6 @@ export interface ChannelRunResult {
   stats: ChannelStats;
 }
 
-/** Per-channel slice of the multi-mode stats. */
 export interface ChannelStats {
   drinksServed: number;
   customersTotal: number;
@@ -32,15 +32,32 @@ export interface MultiRunResult {
   channels: ChannelRunResult[];
 }
 
-export type SimResult = SingleRunResult | MultiRunResult | null;
+export type SimResult = SingleRunResult | MultiRunResult;
 
 export function useSim(): SimResult {
-  const runId = useAppStore((s) => s.runId);
-  const playState = useAppStore((s) => s.playState);
-  const params = useAppStore(selectSimParams);
+  const walkinPerHour = useAppStore((s) => s.walkinPerHour);
+  const pickupPerHour = useAppStore((s) => s.pickupPerHour);
+  const deliveryPerHour = useAppStore((s) => s.deliveryPerHour);
+  const baristas = useAppStore((s) => s.baristas);
+  const baristasPerChannel = useAppStore((s) => s.baristasPerChannel);
+  const serviceTimeMinutes = useAppStore((s) => s.serviceTimeMinutes);
+  const horizonMinutes = useAppStore((s) => s.horizonMinutes);
+  const mode = useAppStore((s) => s.mode);
 
-  const result = useMemo<SimResult>(() => {
-    if (runId === 0) return null;
+  return useMemo<SimResult>(() => {
+    const simMode: SimMode = mode === "multi" ? "multi" : "single";
+    const params: SimParams = {
+      serviceTimeMinutes,
+      baristas,
+      baristasPerChannel,
+      customersByType: {
+        walkin: walkinPerHour,
+        pickup: pickupPerHour,
+        delivery: deliveryPerHour,
+      },
+      horizonMinutes,
+      mode: simMode,
+    };
     const r = runSimulation(params);
 
     if (params.mode === "single") {
@@ -66,14 +83,14 @@ export function useSim(): SimResult {
     });
 
     return { mode: "multi", customers: r.customers, stats: r.stats, channels };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId]);
-
-  useEffect(() => {
-    if (result && playState === "running") {
-      useAppStore.setState({ playState: "done" });
-    }
-  }, [result, playState]);
-
-  return result;
+  }, [
+    walkinPerHour,
+    pickupPerHour,
+    deliveryPerHour,
+    baristas,
+    baristasPerChannel,
+    serviceTimeMinutes,
+    horizonMinutes,
+    mode,
+  ]);
 }

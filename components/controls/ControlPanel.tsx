@@ -60,7 +60,7 @@ export default function ControlPanel() {
         <Slider
           label="Service time / drink (min)"
           value={s.serviceTimeMinutes}
-          min={5}
+          min={1}
           max={10}
           step={1}
           onChange={s.setServiceTimeMinutes}

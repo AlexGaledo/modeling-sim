@@ -10,10 +10,10 @@ import {
   EXIT_X,
   EXIT_Z,
   LANE_X_HEAD,
+  counterFrontPosition,
   deliveryQueueSlotPosition,
   pickupQueueSlotPosition,
   queueSlotPosition,
-  stationPosition,
 } from "./QueueLane";
 
 const COLORS: Record<Customer["orderType"], THREE.Color> = {
@@ -282,7 +282,7 @@ function positionFor(
     if (cust.orderType === "delivery") {
       return [DELIVERY_WINDOW_X, 0, DELIVERY_WINDOW_Z];
     }
-    return stationPosition(stationId, c);
+    return counterFrontPosition(stationId, c);
   }
 
   const t = Math.min(1, Math.max(0, (now - end) / 2));
@@ -291,7 +291,7 @@ function positionFor(
     const exitZ = DELIVERY_WINDOW_Z + (EXIT_Z - DELIVERY_WINDOW_Z) * t;
     return [exitX, 0, exitZ];
   }
-  const [sx, , sz] = stationId >= 0 ? stationPosition(stationId, c) : [LANE_X_HEAD, 0, 0];
+  const [sx, , sz] = stationId >= 0 ? counterFrontPosition(stationId, c) : [LANE_X_HEAD, 0, 0];
   const exitX = sx + (EXIT_X - sx) * t;
   const exitZ = sz + (EXIT_Z - sz) * t;
   return [exitX, 0, exitZ];

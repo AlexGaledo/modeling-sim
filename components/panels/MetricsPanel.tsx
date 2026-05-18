@@ -16,8 +16,6 @@ export default function MetricsPanel() {
 
       {mode === "compare" ? (
         <ComparePanel />
-      ) : !result ? (
-        <p className="text-xs text-[#999]">Press Play to run simulation.</p>
       ) : result.mode === "multi" ? (
         <MultiResultView result={result} />
       ) : (

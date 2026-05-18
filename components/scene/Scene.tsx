@@ -76,21 +76,17 @@ function SceneContent({
       <QueueLane />
       <BaristaStations c={c} />
       <FloorLabels c={c} mode={mode as "single" | "multi" | "compare"} />
-      {result && (
-        <Customers
-          customers={result.customers}
-          c={c}
-          clockRef={clockRef}
-          advance={advance}
-        />
-      )}
-      {result && (
-        <DrinkTickets
-          customers={result.customers}
-          mode={mode as "single" | "multi" | "compare"}
-          clockRef={clockRef}
-        />
-      )}
+      <Customers
+        customers={result.customers}
+        c={c}
+        clockRef={clockRef}
+        advance={advance}
+      />
+      <DrinkTickets
+        customers={result.customers}
+        mode={mode as "single" | "multi" | "compare"}
+        clockRef={clockRef}
+      />
     </>
   );
 }

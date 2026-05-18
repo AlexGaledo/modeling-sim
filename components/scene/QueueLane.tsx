@@ -34,9 +34,16 @@ export function pickupQueueSlotPosition(slotIndex: number): [number, number, num
   return [PICKUP_LANE_X - slotIndex * LANE_SPACING, 0, PICKUP_LANE_Z];
 }
 
+export const COUNTER_FRONT_X = 0.75;
+
 export function stationPosition(stationId: number, totalStations: number): [number, number, number] {
   const zOffset = (stationId - (totalStations - 1) / 2) * STATION_SPACING_Z;
   return [STATION_START_X, 0, zOffset];
+}
+
+export function counterFrontPosition(stationId: number, totalStations: number): [number, number, number] {
+  const zOffset = (stationId - (totalStations - 1) / 2) * STATION_SPACING_Z;
+  return [COUNTER_FRONT_X, 0, zOffset];
 }
 
 function Wall({ position, size, color }: { position: [number, number, number]; size: [number, number, number]; color: string }) {
