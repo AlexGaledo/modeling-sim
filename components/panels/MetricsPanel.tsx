@@ -84,8 +84,8 @@ function SingleResultView({ stats }: { stats: SimStats }) {
       <ThroughputBanner served={stats.drinksServed} total={total} label="SINGLE QUEUE" />
 
       <div className="grid grid-cols-2 gap-2">
-        <Kpi label="Orders arrived" value={String(total)} />
-        <Kpi label="Drinks served" value={String(stats.drinksServed)} highlight />
+        <Kpi label="Total customers" value={String(total) + " /hr"} highlight />
+        <Kpi label="Drinks served" value={String(stats.drinksServed)} />
         <Kpi label="Unserved" value={String(stats.customersUnserved)} />
         <Kpi label="Drinks / barista" value={String(stats.drinksPerBarista)} />
       </div>
@@ -108,8 +108,10 @@ function MultiResultView({ result }: { result: MultiRunResult }) {
     <>
       <ThroughputBanner served={result.stats.drinksServed} total={total} label="PER-TYPE QUEUES" />
 
+      <Kpi label="Total customers" value={String(total) + " /hr"} highlight />
+
       <div className="grid grid-cols-2 gap-2">
-        <Kpi label="Drinks served" value={String(result.stats.drinksServed)} highlight />
+        <Kpi label="Drinks served" value={String(result.stats.drinksServed)} />
         <Kpi label="Unserved" value={String(result.stats.customersUnserved)} />
         <Kpi label="Drinks / barista" value={String(result.stats.drinksPerBarista)} />
         <Kpi label="Idle barista-min" value={String(totalIdle)} />
