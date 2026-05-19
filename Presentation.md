@@ -72,16 +72,20 @@ components/
 
 ---
 
-## 1-Minute Presentation Script
+## 2-Minute Presentation Script
 
-**(0:00)** "This is a café throughput simulator that answers one question: should your shop run a single shared queue or separate queues for walk-in, pickup, and delivery?"
+**(0:00)** "Imagine you run a café with three order streams flowing in — people walking in off the street, mobile pickup orders, and delivery drivers. You have to decide: do you put everyone in one line and let any free barista take the next customer? Or do you split into three dedicated lines, each with its own barista?"
 
-**(0:15)** "The model is completely deterministic — one person orders one drink, it takes exactly `s` minutes to make, they leave. No randomness, no probability. Same inputs always give the same outputs."
+**(0:20)** "That's the question this simulator answers. And the answer isn't obvious — it depends on your specific demand mix, your service time, your labor cost, and your profit margin per drink."
 
-**(0:25)** [Point to the 3D scene or metrics panel] "Here we have the defaults: 100 customers per hour, 5-minute service time, 3 baristas. Both single and multi-channel serve exactly 36 drinks and earn $72 profit per hour — they tie."
+**(0:30)** "Let me show you how the model works. It's deliberately simple: one person orders one drink, it takes exactly `s` minutes to make, they leave. No randomness, no queueing theory, no probability distributions. Same inputs always give the same outputs. This means we can reason about the results with pure arithmetic."
 
-**(0:35)** [Adjust walk-in slider up or service time slider] "But watch what happens when we change the demand mix. Single queue absorbs the spike because any free barista takes the next person. Multi-channel? The delivery barista finishes their 25 orders and sits idle while walk-in has a 50-person line."
+**(0:50)** [Point to the 3D scene or metrics panel] "Here are the defaults: 100 customers per hour — 50 walk-in, 25 pickup, 25 delivery. Five-minute service time. Three baristas total. With a single queue, all three baristas work as a pool — any free hand takes the next person. With per-type queues, one barista handles walk-in, one handles pickup, one handles delivery — and they never cross over."
 
-**(0:45)** [Switch to compare mode] "The compare mode sweeps total customer volume against profit, showing you the exact crossover point — the customer count where you should switch from multi to single queue. The Decision Guide below tells you which system earns more profit right now."
+**(1:10)** "At these defaults, both systems serve 36 drinks and earn $72 profit per hour. They tie. That's because every channel has more demand than a single barista can handle, so nobody sits idle."
 
-**(0:55)** "So the core insight: single queue wins on flexibility — no barista sits idle while customers wait. Per-type queues win on simplicity — clear ownership, no cross-training. The simulator lets you find, for your specific demand mix, which structure actually makes more money."
+**(1:20)** [Adjust walk-in slider up or service time slider] "But watch what happens when demand gets imbalanced. Say walk-in spikes. The single queue handles it — all three baristas just work through the line together. The per-type system? The delivery barista finishes their orders in 12 minutes and then sits idle for the remaining 48 minutes, watching the walk-in line grow. They can't help — they're assigned to delivery only."
+
+**(1:40)** [Switch to compare mode] "This is where the compare mode comes in. It sweeps total customer volume from zero up past capacity and plots profit for both systems. You can see the exact crossover point — the customer count where the recommendation flips. The Decision Guide below tells you, at your current settings, which system earns more and by how much."
+
+**(1:55)** "So the core insight: single queue wins on flexibility — no barista ever sits idle while customers wait. Per-type queues win on operational simplicity — clear ownership, no cross-training needed. The simulator doesn't tell you which is universally better. It tells you which one actually makes more money, for your specific numbers."
