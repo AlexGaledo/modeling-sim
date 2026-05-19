@@ -84,4 +84,4 @@ components/
 
 **(0:45)** [Switch to compare mode] "The compare mode sweeps total customer volume against profit, showing you the exact crossover point — the customer count where you should switch from multi to single queue. The Decision Guide below tells you which system earns more profit right now."
 
-**(0:55)** "Built with TypeScript, Three.js for the 3D crowd visualization, and Recharts for the profit crossover charts. Everything is open source and test-validated against the mathematical spec."
+**(0:55)** "So the core insight: single queue wins on flexibility — no barista sits idle while customers wait. Per-type queues win on simplicity — clear ownership, no cross-training. The simulator lets you find, for your specific demand mix, which structure actually makes more money."
